@@ -189,7 +189,7 @@ export async function runBacktest({ code, stocks, startDate, endDate, initialCap
   let tradingDays = [];
 
   for (const symbol of stocks) {
-    const allCandles = loadSymbolData(symbol);
+    const allCandles = await loadSymbolData(symbol);
     const candles = filterByDateRange(allCandles, startDate, endDate);
     if (candles.length < 504) {
       throw new Error(`Insufficient data for ${symbol} in selected period (minimum 2 years required)`);

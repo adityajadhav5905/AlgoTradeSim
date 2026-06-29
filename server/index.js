@@ -28,7 +28,6 @@ import strategyRoutes from './routes/strategyRoutes.js';
 import backtestRoutes from './routes/backtestRoutes.js';
 import leaderboardRoutes from './routes/leaderboardRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
-import { generateMarketData } from './utils/generateMarketData.js';
 import { getAvailableSymbols } from './services/marketDataService.js';
 import { STOCKS, INDEXES, EXAMPLE_STRATEGIES, ALL_VARS, TRADING_FUNCTIONS } from './utils/constants.js';
 
@@ -81,9 +80,6 @@ app.use((err, req, res, next) => {
  * Prepares mock files, connects to database, and boots the port listener.
  */
 async function start() {
-  // Generate daily historical stock price CSVs in data directory if they are missing
-  generateMarketData();
-
   // Load MongoDB URI connection string
   const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/algotrade';
   try {

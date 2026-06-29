@@ -6,8 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js",
-    "generate-data": "node utils/generateMarketData.js"
+    "dev": "node --watch index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
