@@ -1,6 +1,7 @@
 node_modules/
 .env
 .env.*
+AlgoTrade Simulation.txt
 dist/
 build/
 coverage/
@@ -13,4 +14,5 @@ client/.env
 server/.env
 
 dist/
+data/
 build/
