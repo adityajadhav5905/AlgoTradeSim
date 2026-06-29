@@ -1,0 +1,790 @@
+PROJECT NAME
+
+AlgoTrade Simulator
+
+PROJECT OVERVIEW
+
+Build a full-stack web application that allows users to create, test, and compare algorithmic trading strategies using historical stock market data.
+
+The platform should provide a coding environment where users can write trading strategies using a simplified C++-style syntax. Users can select one or more stocks, define a historical testing period, execute their strategy against historical market data, and view detailed performance metrics and visualizations.
+
+The platform should also include an AI-powered assistant capable of converting natural language, pseudocode, or algorithm descriptions into executable strategy code.
+
+The application should be portfolio-quality, visually polished, highly interactive, and designed similarly to modern trading and quantitative analysis platforms.
+
+==================================================
+TECH STACK
+==================================================
+
+Frontend:
+- React.js
+- JavaScript
+- Tailwind CSS
+- Monaco Editor
+- TradingView Lightweight Charts
+- Axios
+
+Backend:
+- Node.js
+- Express.js
+
+Database:
+- MongoDB
+- Mongoose
+
+AI:
+- OpenAI API (or equivalent LLM)
+
+Historical Data:
+- CSV files
+- Parquet files (optional future support)
+
+Deployment:
+- Frontend: Vercel
+- Backend: Render / Railway
+- Database: MongoDB Atlas
+
+==================================================
+USER SYSTEM
+==================================================
+
+No authentication system.
+
+Do NOT implement:
+
+- Registration
+- Login
+- Passwords
+- JWT
+- Email verification
+- Password reset
+
+When user visits site:
+
+Display onboarding screen:
+
+"Welcome to AlgoTrade Simulator"
+
+Input:
+- Name
+
+Button:
+- Start Trading
+
+After entering name:
+
+- Generate UUID
+- Store user information in localStorage
+- Create user record in MongoDB
+- Redirect to dashboard
+
+User Object:
+
+{
+  userId,
+  name,
+  createdAt
+}
+
+Persist session through localStorage.
+
+If user already exists:
+
+- Skip onboarding
+- Open dashboard directly
+
+Profile Menu:
+
+- Change Name
+- Reset Account
+- Clear Backtests
+- Clear Saved Strategies
+
+==================================================
+DASHBOARD
+==================================================
+
+Dashboard should display:
+
+- Welcome Message
+- Saved Strategies
+- Recent Backtests
+- Performance Summary
+- Global Leaderboard Snapshot
+- Quick Start Templates
+
+Dashboard Metrics:
+
+- Total Strategies
+- Total Backtests
+- Best Return
+- Average Return
+- Leaderboard Rank
+
+==================================================
+MARKET DATA
+==================================================
+
+Support Stocks:
+
+- RELIANCE
+- TCS
+- INFY
+- HDFCBANK
+- ICICIBANK
+- SBIN
+- Additional stocks
+
+Support Indexes:
+
+- NIFTY 50
+- SENSEX
+- BANK NIFTY
+
+Historical Data Fields:
+
+{
+  date,
+  open,
+  high,
+  low,
+  close,
+  volume
+}
+
+Timeframe:
+
+Daily candles only for MVP.
+
+==================================================
+PRECOMPUTED INDICATORS
+==================================================
+
+Compute and expose:
+
+Moving Averages
+
+- SMA20
+- SMA50
+- SMA100
+- SMA200
+
+Exponential Moving Averages
+
+- EMA20
+- EMA50
+- EMA100
+
+Momentum
+
+- RSI14
+- MACD
+- MACD Signal
+
+Volatility
+
+- ATR14
+
+Price Levels
+
+- 52 Week High
+- 52 Week Low
+- 1 Month High
+- 1 Month Low
+- 1 Week High
+- 1 Week Low
+
+Volume Metrics
+
+- Average Volume 20
+- Average Volume 50
+
+Returns
+
+- Daily Return
+- Weekly Return
+- Monthly Return
+
+==================================================
+STRATEGY ENGINE
+==================================================
+
+Users should feel like they are writing C++.
+
+However:
+
+DO NOT execute arbitrary C++ code.
+
+Build a custom parser and execution engine.
+
+Flow:
+
+User Code
+→ Parser
+→ AST
+→ Strategy Engine
+→ Backtest Engine
+
+Only allow approved syntax.
+
+==================================================
+SUPPORTED VARIABLES
+==================================================
+
+Price Variables
+
+open
+high
+low
+close
+volume
+
+Indicator Variables
+
+sma20
+sma50
+sma100
+sma200
+
+ema20
+ema50
+ema100
+
+rsi
+
+macd
+
+atr
+
+Price Range Variables
+
+high_52w
+low_52w
+
+high_1m
+low_1m
+
+high_1w
+low_1w
+
+Portfolio Variables
+
+cash
+portfolio_value
+
+==================================================
+SUPPORTED OPERATORS
+==================================================
+
+Comparison
+
+>
+<
+>=
+<=
+==
+!=
+
+Logical
+
+&&
+||
+
+Arithmetic
+
++
+-
+*
+/
+
+==================================================
+SUPPORTED CONTROL FLOW
+==================================================
+
+if(condition)
+{
+}
+
+else
+{
+}
+
+Nested conditions should be supported.
+
+==================================================
+SUPPORTED TRADING FUNCTIONS
+==================================================
+
+buy(quantity)
+
+sell(quantity)
+
+buy_all()
+
+sell_all()
+
+shares_owned()
+
+current_cash()
+
+portfolio_value()
+
+==================================================
+STRATEGY EDITOR
+==================================================
+
+Use Monaco Editor.
+
+Features:
+
+- Syntax Highlighting
+- Autocomplete
+- Error Detection
+- Strategy Validation
+- Save Strategy
+- Load Strategy
+- Rename Strategy
+- Delete Strategy
+
+Layout
+
+LEFT PANEL
+
+- Code Editor
+
+RIGHT PANEL
+
+- Available Variables
+- Available Functions
+- AI Assistant
+- Example Strategies
+
+==================================================
+AI STRATEGY ASSISTANT
+==================================================
+
+Provide chatbot panel.
+
+User Example:
+
+"Buy whenever price breaks 52 week high and sell when RSI exceeds 70."
+
+AI Generates:
+
+if(close > high_52w)
+{
+    buy_all();
+}
+
+if(rsi > 70)
+{
+    sell_all();
+}
+
+Capabilities:
+
+- Generate Code
+- Explain Code
+- Fix Errors
+- Improve Strategy
+- Convert Pseudocode To Code
+
+Generated code should automatically populate editor.
+
+==================================================
+MULTI-STOCK BACKTESTING
+==================================================
+
+User can select:
+
+Minimum:
+1 Stock
+
+Maximum:
+5 Stocks
+
+Examples:
+
+RELIANCE
+TCS
+INFY
+HDFCBANK
+ICICIBANK
+
+The same strategy should execute across all selected assets.
+
+Portfolio should maintain:
+
+- Shared Capital
+- Cash Balance
+- Open Positions
+- Position Values
+
+==================================================
+BACKTEST CONFIGURATION
+==================================================
+
+Required Inputs:
+
+- Strategy
+- Stock(s)
+- Start Date
+- End Date
+- Initial Capital
+
+Default Capital:
+
+₹100,000
+
+Minimum Backtest Duration:
+
+2 Years
+
+Validation:
+
+Prevent execution if period is less than 2 years.
+
+==================================================
+BACKTEST ENGINE
+==================================================
+
+Execution Flow
+
+For each trading day:
+
+1. Load candle
+2. Update indicators
+3. Evaluate strategy
+4. Generate orders
+5. Execute orders
+6. Update positions
+7. Update cash
+8. Update portfolio value
+
+Order Types
+
+- Buy
+- Sell
+
+Execution Assumptions
+
+Commission:
+0.10%
+
+Slippage:
+0.05%
+
+Order Execution:
+Next Day Open
+
+==================================================
+RESULTS PAGE
+==================================================
+
+Display:
+
+Initial Capital
+
+Final Capital
+
+Net Profit
+
+Return %
+
+CAGR
+
+Sharpe Ratio
+
+Sortino Ratio
+
+Maximum Drawdown
+
+Profit Factor
+
+Win Rate
+
+Average Trade
+
+Best Trade
+
+Worst Trade
+
+Total Trades
+
+Average Holding Period
+
+==================================================
+VISUALIZATIONS
+==================================================
+
+1. Price Chart
+
+TradingView Lightweight Chart
+
+Features:
+
+- OHLC Candles
+- Buy Markers
+- Sell Markers
+
+2. Equity Curve
+
+Portfolio Value Over Time
+
+3. Drawdown Curve
+
+Drawdown Over Time
+
+4. Monthly Returns Heatmap
+
+5. Portfolio Growth Chart
+
+6. Trade History Table
+
+Columns:
+
+Date
+Stock
+Action
+Quantity
+Price
+Profit/Loss
+
+==================================================
+LEADERBOARD
+==================================================
+
+Global leaderboard.
+
+Display:
+
+Rank
+User Name
+Strategy Name
+Return %
+Sharpe Ratio
+Max Drawdown
+Stocks
+Period
+
+Ranking Priority:
+
+1. Return %
+2. Sharpe Ratio
+
+Rules:
+
+- Minimum 2 Year Test
+- Same Starting Capital
+- Same Commission
+- Same Slippage
+
+Leaderboard Collection
+
+{
+  userId,
+  userName,
+  strategyId,
+  strategyName,
+  returnPercent,
+  sharpeRatio,
+  drawdown,
+  rank
+}
+
+==================================================
+EXAMPLE STRATEGIES
+==================================================
+
+Moving Average Crossover
+
+if(sma50 > sma200)
+{
+    buy_all();
+}
+
+if(sma50 < sma200)
+{
+    sell_all();
+}
+
+RSI Reversal
+
+if(rsi < 30)
+{
+    buy_all();
+}
+
+if(rsi > 70)
+{
+    sell_all();
+}
+
+52 Week Breakout
+
+if(close > high_52w)
+{
+    buy_all();
+}
+
+Mean Reversion
+
+if(close < low_1m)
+{
+    buy_all();
+}
+
+==================================================
+DATABASE DESIGN
+==================================================
+
+Users
+
+{
+  userId,
+  name,
+  createdAt
+}
+
+Strategies
+
+{
+  strategyId,
+  userId,
+  userName,
+  strategyName,
+  code,
+  createdAt
+}
+
+Backtests
+
+{
+  backtestId,
+  userId,
+  userName,
+  strategyId,
+  strategyName,
+  stocks,
+  startDate,
+  endDate,
+  returnPercent,
+  sharpeRatio,
+  drawdown,
+  finalCapital,
+  trades,
+  createdAt
+}
+
+Leaderboard
+
+{
+  userId,
+  userName,
+  strategyId,
+  strategyName,
+  returnPercent,
+  sharpeRatio,
+  drawdown,
+  rank
+}
+
+==================================================
+API ENDPOINTS
+==================================================
+
+User
+
+POST /api/user/create
+PUT /api/user/update
+
+Strategies
+
+GET /api/strategies
+POST /api/strategies
+PUT /api/strategies/:id
+DELETE /api/strategies/:id
+
+Backtesting
+
+POST /api/backtest/run
+GET /api/backtest/:id
+GET /api/backtests
+
+Leaderboard
+
+GET /api/leaderboard
+
+AI
+
+POST /api/ai/generate
+POST /api/ai/explain
+POST /api/ai/improve
+
+==================================================
+UI DESIGN REQUIREMENTS
+==================================================
+
+Design Inspiration:
+
+- TradingView
+- QuantConnect
+- AlgoTest
+- Zerodha Kite
+
+Theme:
+
+Dark Mode First
+
+Requirements:
+
+- Professional appearance
+- Modern dashboard
+- Glassmorphism where appropriate
+- Responsive design
+- Fast loading
+- Smooth animations
+- Consistent spacing
+- Clean typography
+
+==================================================
+PROJECT STRUCTURE
+==================================================
+
+Frontend
+
+/src
+/components
+/pages
+/hooks
+/services
+/context
+/utils
+
+Backend
+
+/server
+/routes
+/controllers
+/models
+/services
+/engine
+/parser
+/middleware
+/utils
+
+==================================================
+FINAL GOAL
+==================================================
+
+Create a professional algorithmic trading simulator where users can:
+
+- Enter their name and start immediately
+- Write trading strategies
+- Generate strategies using AI
+- Backtest strategies on historical data
+- Analyze performance
+- Compare results
+- Compete on global leaderboards
+
+The final product should feel like a simplified combination of QuantConnect, TradingView, and AlgoTest while remaining intuitive enough for beginners and powerful enough for advanced users.

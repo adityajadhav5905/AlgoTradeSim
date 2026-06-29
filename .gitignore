@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+dist/
+build/
+coverage/
+.vscode/
+
+client/node_modules/
+server/node_modules/
+
+client/.env
+server/.env
+
+dist/
+build/
