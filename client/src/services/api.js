@@ -28,12 +28,89 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }, // We communicate using JSON formats
 });
 
+// Request interceptor to attach JWT access token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('algotrade_access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor to unpack envelopes and handle token refresh / rotation
+api.interceptors.response.use(
+  (response) => {
+    // 1. Automatically extract and persist tokens if returned in successful payload
+    if (response.data && response.data.success === true && response.data.data) {
+      const payload = response.data.data;
+      if (payload.accessToken) {
+        localStorage.setItem('algotrade_access_token', payload.accessToken);
+      }
+      if (payload.refreshToken) {
+        localStorage.setItem('algotrade_refresh_token', payload.refreshToken);
+      }
+      response.data = payload;
+    }
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // 2. Intercept 401 Unauthorized errors to perform token rotation
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const refreshToken = localStorage.getItem('algotrade_refresh_token');
+      
+      if (refreshToken) {
+        try {
+          // Request a new rotated access/refresh token pair
+          const res = await axios.post(`${API_URL}/user/refresh`, { refreshToken });
+          
+          if (res.data && res.data.success && res.data.data) {
+            const { accessToken, refreshToken: newRefreshToken } = res.data.data;
+            localStorage.setItem('algotrade_access_token', accessToken);
+            localStorage.setItem('algotrade_refresh_token', newRefreshToken);
+            
+            // Retry the original request with the new access token
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            return api(originalRequest);
+          }
+        } catch (refreshError) {
+          console.warn('Session expired or token rotation violation detected. Clearing credentials.');
+          localStorage.removeItem('algotrade_user');
+          localStorage.removeItem('algotrade_access_token');
+          localStorage.removeItem('algotrade_refresh_token');
+          // Redirect to onboarding page
+          window.location.href = '/';
+          return Promise.reject(refreshError);
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ==========================================
 // USER API ENDPOINTS
 // ==========================================
 
 // Creates a new user record. Sends a POST request with the user's name in the body.
 export const createUser = (name) => api.post('/user/create', { name });
+
+// Log in with username and password.
+export const loginUser = (name, password) => api.post('/user/login', { name, password });
+
+// Register a new user with username, password, and optional role.
+export const registerUser = (name, password, role) => api.post('/user/register', { name, password, role });
+
+// Change user password.
+export const changePassword = (oldPassword, newPassword) => api.post('/user/change-password', { oldPassword, newPassword });
+
+// Log out user.
+export const logoutUser = () => api.post('/user/logout');
 
 // Updates an existing user's profile details.
 export const updateUser = (userId, name) => api.put('/user/update', { userId, name });

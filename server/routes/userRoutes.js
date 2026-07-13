@@ -16,20 +16,39 @@
  */
 
 import { Router } from 'express';
-import { createUser, updateUser, resetAccount, getUserStats } from '../controllers/userController.js';
+import { 
+  createUser, 
+  updateUser, 
+  resetAccount, 
+  getUserStats,
+  register,
+  login,
+  logout,
+  refresh,
+  changePassword
+} from '../controllers/userController.js';
+import { authenticateJwt } from '../presentation/middleware/auth.js';
+import { authorizeRoles, authLimiter } from '../presentation/middleware/security.js';
 
 const router = Router();
 
-// Route: POST /api/user/create -> Creates user profiles
-router.post('/create', createUser);
+// Public auth endpoints (throttled)
+router.post('/create', authLimiter, createUser); // Onboarding session login (find-or-create)
+router.post('/register', authLimiter, register);
+router.post('/login', authLimiter, login);
+router.post('/refresh', refresh);
 
-// Route: PUT /api/user/update -> Updates username profiles
-router.put('/update', updateUser);
+// Protected endpoints
+router.post('/logout', authenticateJwt, logout);
+router.post('/change-password', authenticateJwt, changePassword);
 
-// Route: POST /api/user/reset -> Wipes user details and all related data records
-router.post('/reset', resetAccount);
+// Modify user details
+router.put('/update', authenticateJwt, updateUser);
 
-// Route: GET /api/user/stats/:userId -> Returns total counts, returns metrics, and leaderboard positions
-router.get('/stats/:userId', getUserStats);
+// Sensitive Admin Action: Wipes user details and all related data records
+router.post('/reset', authenticateJwt, authorizeRoles('Admin'), resetAccount);
+
+// Fetch stats (requires valid login session)
+router.get('/stats/:userId', authenticateJwt, getUserStats);
 
 export default router;

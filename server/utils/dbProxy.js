@@ -30,7 +30,11 @@ const memoryStore = {
   users: [],
   strategies: [],
   backtests: [],
-  leaderboards: []
+  leaderboards: [],
+  trades: [],
+  portfolios: [],
+  executionlogs: [],
+  auditlogs: []
 };
 
 /**

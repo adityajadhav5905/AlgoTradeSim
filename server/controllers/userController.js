@@ -21,32 +21,137 @@
  * - Cascading updates: When a user changes their name, we must update that name across strategies, backtests, and leaderboard.
  */
 
-import { v4 as uuidv4 } from 'uuid';
-import User from '../models/User.js';
-import Strategy from '../models/Strategy.js';
-import Backtest from '../models/Backtest.js';
-import Leaderboard from '../models/Leaderboard.js';
+import { userApplicationService } from '../application/services/UserApplicationService.js';
+import { securityApplicationService } from '../application/services/SecurityApplicationService.js';
+import { UserDTO } from '../presentation/dtos/UserDTO.js';
+import { ValidationError } from '../shared/errors/AppError.js';
 
 /**
- * createUser - Creates a new user record.
+ * createUser - Onboarding session login (quick find-or-create).
  * Route: POST /api/user/create
  */
-export const createUser = async (req, res) => {
+export const createUser = async (req, res, next) => {
   try {
-    const { name } = req.body; // Extract username string from request body JSON payload
-    if (!name?.trim()) {
-      return res.status(400).json({ error: 'Name is required' });
-    }
-
-    // Generate a random unique version-4 UUID string
-    const userId = uuidv4();
-    // Save to the database
-    const user = await User.create({ userId, name: name.trim() });
-    
-    // Return status 201 Created and the user object JSON
-    res.status(201).json(user);
+    const { name } = req.body;
+    const { user, accessToken, refreshToken } = await securityApplicationService.quickRegister(
+      name,
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.status(201).json({
+      success: true,
+      data: {
+        ...UserDTO.toResponse(user),
+        accessToken,
+        refreshToken
+      }
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
+  }
+};
+
+/**
+ * register - Standard registration with password policy checks.
+ * Route: POST /api/user/register
+ */
+export const register = async (req, res, next) => {
+  try {
+    const { name, password, role } = req.body;
+    const { user, accessToken, refreshToken } = await securityApplicationService.register(
+      { name, password, role },
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.status(201).json({
+      success: true,
+      data: {
+        ...UserDTO.toResponse(user),
+        accessToken,
+        refreshToken
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * login - Standard credential verification with brute force protection.
+ * Route: POST /api/user/login
+ */
+export const login = async (req, res, next) => {
+  try {
+    const { name, password } = req.body;
+    const { user, accessToken, refreshToken } = await securityApplicationService.login(
+      { name, password },
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.json({
+      success: true,
+      data: {
+        ...UserDTO.toResponse(user),
+        accessToken,
+        refreshToken
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * logout - Invalidates user session refresh tokens.
+ * Route: POST /api/user/logout
+ */
+export const logout = async (req, res, next) => {
+  try {
+    const result = await securityApplicationService.logout(
+      req.user.userId,
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * refresh - Performs token rotation and reuse detection.
+ * Route: POST /api/user/refresh
+ */
+export const refresh = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    const result = await securityApplicationService.refresh(
+      refreshToken,
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * changePassword - Updates password credential securely.
+ * Route: POST /api/user/change-password
+ */
+export const changePassword = async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const result = await securityApplicationService.changePassword(
+      req.user.userId,
+      { oldPassword, newPassword },
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -54,28 +159,19 @@ export const createUser = async (req, res) => {
  * updateUser - Modifies the username profile.
  * Route: PUT /api/user/update
  */
-export const updateUser = async (req, res) => {
+export const updateUser = async (req, res, next) => {
   try {
     const { userId, name } = req.body;
-    if (!userId || !name?.trim()) {
-      return res.status(400).json({ error: 'userId and name are required' });
+    
+    // Protect profile edits
+    if (req.user.userId !== userId && req.user.role !== 'Admin') {
+      throw new ValidationError('Access denied: cannot modify other user profiles');
     }
-
-    // Find the user by ID and update their name field. { new: true } returns the updated record rather than the old one.
-    const user = await User.findOneAndUpdate({ userId }, { name: name.trim() }, { new: true });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // CASCADING UPDATE:
-    // Update the username across all strategies, backtests, and leaderboard records linked to this userId.
-    await Strategy.updateMany({ userId }, { userName: name.trim() });
-    await Backtest.updateMany({ userId }, { userName: name.trim() });
-    await Leaderboard.updateMany({ userId }, { userName: name.trim() });
-
-    res.json(user);
+    
+    const user = await userApplicationService.updateUserProfile(userId, name, req.ip, req.headers['user-agent']);
+    res.json({ success: true, data: UserDTO.toResponse(user) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
@@ -83,22 +179,13 @@ export const updateUser = async (req, res) => {
  * resetAccount - Completely deletes a user and all related strategical records.
  * Route: POST /api/user/reset
  */
-export const resetAccount = async (req, res) => {
+export const resetAccount = async (req, res, next) => {
   try {
     const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
-    }
-
-    // Delete all linked entries in parallel databases
-    await Strategy.deleteMany({ userId });
-    await Backtest.deleteMany({ userId });
-    await Leaderboard.deleteMany({ userId });
-    await User.deleteOne({ userId });
-
-    res.json({ message: 'Account reset successfully' });
+    const result = await userApplicationService.resetAccount(userId, req.ip, req.headers['user-agent']);
+    res.json({ success: true, data: result });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
@@ -106,37 +193,12 @@ export const resetAccount = async (req, res) => {
  * getUserStats - Gathers aggregated user portfolio stats.
  * Route: GET /api/user/stats/:userId
  */
-export const getUserStats = async (req, res) => {
+export const getUserStats = async (req, res, next) => {
   try {
-    const { userId } = req.params; // Extract from URL parameters path segment
-
-    // 1. Count the total number of strategies created by this user
-    const strategies = await Strategy.countDocuments({ userId });
-    
-    // 2. Fetch all backtests completed, sorted from newest to oldest
-    const backtests = await Backtest.find({ userId }).sort({ createdAt: -1 });
-    
-    // 3. Map returns array to calculate max/average return values
-    const returns = backtests.map(b => b.returnPercent);
-    const bestReturn = returns.length ? Math.max(...returns) : 0;
-    
-    // Reduce sums all items. We divide by count to get the average.
-    const avgReturn = returns.length ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
-
-    // 4. Find the user's best ranking entry on the leaderboard (lowest rank number means highest position)
-    const rankEntry = await Leaderboard.findOne({ userId }).sort({ rank: 1 });
-    const rank = rankEntry?.rank || null;
-
-    // Return compiled statistics bundle
-    res.json({
-      totalStrategies: strategies,
-      totalBacktests: backtests.length,
-      bestReturn,
-      avgReturn: +avgReturn.toFixed(2), // Convert back to float with two decimal points
-      rank,
-      recentBacktests: backtests.slice(0, 5), // Only return the 5 most recent runs for preview
-    });
+    const { userId } = req.params;
+    const stats = await userApplicationService.getUserStats(userId);
+    res.json({ success: true, data: UserDTO.toStatsResponse(stats) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };

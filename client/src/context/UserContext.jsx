@@ -16,7 +16,12 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { createUser as apiCreateUser, updateUser as apiUpdateUser, resetAccount as apiResetAccount } from '../services/api';
+import { 
+  createUser as apiCreateUser, 
+  updateUser as apiUpdateUser, 
+  resetAccount as apiResetAccount,
+  logoutUser as apiLogoutUser
+} from '../services/api';
 
 // The key used to read/write the serialized user details string from browser local storage.
 const STORAGE_KEY = 'algotrade_user';
@@ -83,15 +88,22 @@ export function UserProvider({ children }) {
     await apiResetAccount(user.userId);
     // 2. Clean up browser storage.
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('algotrade_access_token');
+    localStorage.removeItem('algotrade_refresh_token');
     // 3. Reset state to null, which automatically redirects the user to onboarding.
     setUser(null);
   };
 
   // Simple log out that clears local cache without wiping database records.
-  // useCallback is an optimization that memoizes (caches) this function definition, 
-  // preventing unnecessary child component re-renders.
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await apiLogoutUser();
+    } catch (err) {
+      console.warn('Logout API call failed:', err.message);
+    }
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('algotrade_access_token');
+    localStorage.removeItem('algotrade_refresh_token');
     setUser(null);
   }, []);
 
