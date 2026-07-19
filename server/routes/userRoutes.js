@@ -16,39 +16,24 @@
  */
 
 import { Router } from 'express';
-import { 
-  createUser, 
-  updateUser, 
-  resetAccount, 
-  getUserStats,
-  register,
-  login,
-  logout,
-  refresh,
-  changePassword
-} from '../controllers/userController.js';
-import { authenticateJwt } from '../presentation/middleware/auth.js';
-import { authorizeRoles, authLimiter } from '../presentation/middleware/security.js';
+import { requestOtp, verifyOtp, updateUser, resetAccount, getUserStats } from '../controllers/userController.js';
+import { auth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Public auth endpoints (throttled)
-router.post('/create', authLimiter, createUser); // Onboarding session login (find-or-create)
-router.post('/register', authLimiter, register);
-router.post('/login', authLimiter, login);
-router.post('/refresh', refresh);
+// Route: POST /api/user/request-otp -> Generates and logs OTP code
+router.post('/request-otp', requestOtp);
 
-// Protected endpoints
-router.post('/logout', authenticateJwt, logout);
-router.post('/change-password', authenticateJwt, changePassword);
+// Route: POST /api/user/verify-otp -> Verifies OTP and returns user + JWT token
+router.post('/verify-otp', verifyOtp);
 
-// Modify user details
-router.put('/update', authenticateJwt, updateUser);
+// Route: PUT /api/user/update -> Updates username profiles (Authenticated)
+router.put('/update', auth, updateUser);
 
-// Sensitive Admin Action: Wipes user details and all related data records
-router.post('/reset', authenticateJwt, authorizeRoles('Admin'), resetAccount);
+// Route: POST /api/user/reset -> Wipes user profile and all strategies/backtests (Authenticated)
+router.post('/reset', auth, resetAccount);
 
-// Fetch stats (requires valid login session)
-router.get('/stats/:userId', authenticateJwt, getUserStats);
+// Route: GET /api/user/stats/:userId -> Returns user simulation statistics (Authenticated)
+router.get('/stats/:userId', auth, getUserStats);
 
 export default router;

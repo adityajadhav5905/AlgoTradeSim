@@ -66,14 +66,14 @@ export default function Layout() {
   // Clears user backtesting logs
   const handleClearBacktests = async () => {
     if (!confirm('Clear all backtest history?')) return;
-    await clearBacktests(user.userId);
+    await clearBacktests();
     setMenuOpen(false);
   };
 
   // Deletes all user strategy codes in parallel using Promise.all
   const handleClearStrategies = async () => {
     if (!confirm('Delete all saved strategies?')) return;
-    const res = await getStrategies(user.userId);
+    const res = await getStrategies();
     // Execute all deletes concurrently
     await Promise.all(res.data.map(s => deleteStrategy(s.strategyId)));
     setMenuOpen(false);

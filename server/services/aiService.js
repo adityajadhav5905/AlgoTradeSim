@@ -40,28 +40,35 @@ Operators: > < >= <= == != && || + - * /
 
 Return ONLY the strategy code, no markdown fences.`;
 
-// Initialize OpenAI client only if key is configured
+// Initialize OpenAI client pointing to the Google Gemini OpenAI-compatibility endpoint.
+// Requires a valid GEMINI_API_KEY environment variable.
 let openai = null;
-if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
+  openai = new OpenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
+  });
 }
 
 /**
- * callLLM - Submits prompt to LLM, falls back to pattern matching if offline/no key.
+ * callLLM - Submits the prompt to Google's Gemini 1.5 Flash model.
+ * Falls back to offline pattern matching templates if the API key is not configured.
  */
 async function callLLM(userPrompt) {
   if (!openai) {
-    // Revert to static patterns if OpenAI key is not configured
+    // Revert to static pattern matchers if Gemini API key is missing.
+    // This allows students/testers to continue using the application offline.
     return generateFallback(userPrompt);
   }
 
+  // Request completions using the official Gemini 1.5 Flash model
   const response = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    model: 'gemini-1.5-flash',
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userPrompt },
     ],
-    temperature: 0.3, // Low temperature for high reproducibility and logical accuracy
+    temperature: 0.3, // Low temperature ensures rigid logical compliance with our C++ DSL
     max_tokens: 1024,
   });
 
@@ -102,46 +109,9 @@ function stripCodeFences(text) {
 }
 
 /**
- * generateStrategy - Requests a new strategy template from AI.
+ * generateStrategy - Requests a new strategy template from Gemini AI.
  */
 export async function generateStrategy(description) {
   const code = await callLLM(`Generate a trading strategy for: ${description}`);
   return stripCodeFences(code);
-}
-
-/**
- * explainStrategy - Prompts LLM to explain code rules.
- */
-export async function explainStrategy(code) {
-  if (!openai) {
-    return 'AI explanation requires an OpenAI API key. The strategy uses conditional rules to buy or sell based on market indicators.';
-  }
-  const response = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: 'Explain this trading strategy code in simple terms for a beginner trader.' },
-      { role: 'user', content: code },
-    ],
-    temperature: 0.5,
-    max_tokens: 512,
-  });
-  return response.choices[0]?.message?.content?.trim() || '';
-}
-
-/**
- * improveStrategy - Requests optimization refactoring from AI.
- */
-export async function improveStrategy(code, goal = 'improve risk-adjusted returns') {
-  const prompt = `Improve this strategy to ${goal}:\n\n${code}`;
-  const improved = await callLLM(prompt);
-  return stripCodeFences(improved);
-}
-
-/**
- * fixStrategy - Submits compiler errors to AI to fix syntax.
- */
-export async function fixStrategy(code, errors) {
-  const prompt = `Fix these errors in the strategy code:\nErrors: ${errors.join(', ')}\n\nCode:\n${code}`;
-  const fixed = await callLLM(prompt);
-  return stripCodeFences(fixed);
 }

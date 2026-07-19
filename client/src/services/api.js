@@ -28,133 +28,79 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }, // We communicate using JSON formats
 });
 
-// Request interceptor to attach JWT access token
+// Axios Request Interceptor: Automatically injects the JWT authentication token
+// from local storage into the 'Authorization' header of every request.
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('algotrade_access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const stored = localStorage.getItem('algotrade_user');
+    if (stored) {
+      try {
+        const user = JSON.parse(stored);
+        if (user.token) {
+          config.headers.Authorization = `Bearer ${user.token}`;
+        }
+      } catch (err) {
+        console.error('[API Interceptor] Failed to parse cached session token:', err.message);
+      }
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to unpack envelopes and handle token refresh / rotation
-api.interceptors.response.use(
-  (response) => {
-    // 1. Automatically extract and persist tokens if returned in successful payload
-    if (response.data && response.data.success === true && response.data.data) {
-      const payload = response.data.data;
-      if (payload.accessToken) {
-        localStorage.setItem('algotrade_access_token', payload.accessToken);
-      }
-      if (payload.refreshToken) {
-        localStorage.setItem('algotrade_refresh_token', payload.refreshToken);
-      }
-      response.data = payload;
-    }
-    return response;
-  },
-  async (error) => {
-    const originalRequest = error.config;
-    
-    // 2. Intercept 401 Unauthorized errors to perform token rotation
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      const refreshToken = localStorage.getItem('algotrade_refresh_token');
-      
-      if (refreshToken) {
-        try {
-          // Request a new rotated access/refresh token pair
-          const res = await axios.post(`${API_URL}/user/refresh`, { refreshToken });
-          
-          if (res.data && res.data.success && res.data.data) {
-            const { accessToken, refreshToken: newRefreshToken } = res.data.data;
-            localStorage.setItem('algotrade_access_token', accessToken);
-            localStorage.setItem('algotrade_refresh_token', newRefreshToken);
-            
-            // Retry the original request with the new access token
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-            return api(originalRequest);
-          }
-        } catch (refreshError) {
-          console.warn('Session expired or token rotation violation detected. Clearing credentials.');
-          localStorage.removeItem('algotrade_user');
-          localStorage.removeItem('algotrade_access_token');
-          localStorage.removeItem('algotrade_refresh_token');
-          // Redirect to onboarding page
-          window.location.href = '/';
-          return Promise.reject(refreshError);
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
 // ==========================================
 // USER API ENDPOINTS
 // ==========================================
 
-// Creates a new user record. Sends a POST request with the user's name in the body.
-export const createUser = (name) => api.post('/user/create', { name });
+// Requests a 6-digit OTP to be generated and logged on the server.
+export const requestOtp = (phoneNumber) => api.post('/user/request-otp', { phoneNumber });
 
-// Log in with username and password.
-export const loginUser = (name, password) => api.post('/user/login', { name, password });
+// Verifies the 6-digit OTP code. If the user is new, includes 'name' to complete registration.
+export const verifyOtp = (phoneNumber, otp, name) => api.post('/user/verify-otp', { phoneNumber, otp, name });
 
-// Register a new user with username, password, and optional role.
-export const registerUser = (name, password, role) => api.post('/user/register', { name, password, role });
+// Updates the authenticated user's profile details.
+export const updateUser = (name) => api.put('/user/update', { name });
 
-// Change user password.
-export const changePassword = (oldPassword, newPassword) => api.post('/user/change-password', { oldPassword, newPassword });
+// Resets a user account. Deletes all their strategy entries, backtests, and user record.
+export const resetAccount = () => api.post('/user/reset');
 
-// Log out user.
-export const logoutUser = () => api.post('/user/logout');
-
-// Updates an existing user's profile details.
-export const updateUser = (userId, name) => api.put('/user/update', { userId, name });
-
-// Resets a user account. Deletes all their strategy entries, backtest metrics, and user record.
-export const resetAccount = (userId) => api.post('/user/reset', { userId });
-
-// Gets user statistics (e.g., number of strategies created, average backtest results, active win rate).
+// Gets user statistics (e.g., number of strategies, average backtest returns).
 export const getUserStats = (userId) => api.get(`/user/stats/${userId}`);
 
 // ==========================================
 // STRATEGY API ENDPOINTS (CRUD operations)
 // ==========================================
 
-// Retrieves a list of strategies created by a specific user. Passed as query parameters (?userId=xxx)
-export const getStrategies = (userId) => api.get('/strategies', { params: { userId } });
+// Retrieves strategies created by the authenticated user.
+export const getStrategies = () => api.get('/strategies');
 
 // Creates a new strategy code entry.
 export const createStrategy = (data) => api.post('/strategies', data);
 
-// Updates the code or title of an existing strategy by its ID parameter.
+// Updates the code or title of an existing strategy by its ID.
 export const updateStrategy = (id, data) => api.put(`/strategies/${id}`, data);
 
-// Deletes a strategy from the database by its ID.
+// Deletes a strategy by its ID.
 export const deleteStrategy = (id) => api.delete(`/strategies/${id}`);
 
-// Sends code to the backend parser to validate syntax rules without saving.
+// Sends code to the parser to validate syntax rules.
 export const validateStrategy = (code) => api.post('/strategies/validate', { code });
 
 // ==========================================
 // BACKTEST ENGINE ENDPOINTS
 // ==========================================
 
-// Triggers the time-series backtest engine to simulate strategy code on stock dates.
+// Triggers the time-series backtest engine to simulate strategy code.
 export const runBacktest = (data) => api.post('/backtest/run', data);
 
 // Fetches the computed details and equity log of a specific past backtest simulation.
 export const getBacktest = (id) => api.get(`/backtest/${id}`);
 
-// Retrieves all past backtests performed by a specific user.
-export const getBacktests = (userId) => api.get('/backtests', { params: { userId } });
+// Retrieves all past backtests performed by the authenticated user.
+export const getBacktests = () => api.get('/backtests');
 
-// Clears/Deletes all backtest history logs linked to a user.
-export const clearBacktests = (userId) => api.post('/backtest/clear', { userId });
+// Clears/Deletes all backtest history logs linked to the user.
+export const clearBacktests = () => api.post('/backtest/clear');
 
 // ==========================================
 // LEADERBOARD ENDPOINTS
@@ -169,15 +115,6 @@ export const getLeaderboard = () => api.get('/leaderboard');
 
 // Generates a fully coded strategy template based on user prompt.
 export const aiGenerate = (prompt) => api.post('/ai/generate', { prompt });
-
-// Asks AI to explain strategy logic line-by-line.
-export const aiExplain = (code) => api.post('/ai/explain', { code });
-
-// Asks AI to optimize/improve a strategy structure based on a target goal (e.g. increase wins).
-export const aiImprove = (code, goal) => api.post('/ai/improve', { code, goal });
-
-// Passes compiled parser syntax errors to AI to return a corrected code string.
-export const aiFix = (code, errors) => api.post('/ai/fix', { code, errors });
 
 // ==========================================
 // MARKET REFERENCE DATA ENDPOINTS

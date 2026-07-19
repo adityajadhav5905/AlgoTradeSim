@@ -56,7 +56,7 @@ export default function Dashboard() {
         // we start all three HTTP requests in parallel using Promise.all.
         const [statsRes, stratRes, lbRes] = await Promise.all([
           getUserStats(user.userId),
-          getStrategies(user.userId),
+          getStrategies(),
           getLeaderboard(),
         ]);
         

@@ -96,7 +96,7 @@ export default function StrategyEditor() {
     async function init() {
       // Load available settings, functions, symbols, and strategies from backend API
       const [refRes, symRes, stratRes] = await Promise.all([
-        getReference(), getMarketSymbols(), getStrategies(user.userId),
+        getReference(), getMarketSymbols(), getStrategies(),
       ]);
       setReference(refRes.data);
       setSymbols(symRes.data);
@@ -122,7 +122,7 @@ export default function StrategyEditor() {
       }
     }
     init();
-  }, [strategyId, user.userId, location.state]);
+  }, [strategyId, location.state]);
 
   // Synchronize Monaco autocomplete options whenever the API returns available indicator variables/functions
   useEffect(() => {
@@ -166,14 +166,14 @@ export default function StrategyEditor() {
       } else {
         // Insert new strategy database entry
         const res = await createStrategy({
-          userId: user.userId, userName: user.name, strategyName, code,
+          strategyName, code,
         });
         setCurrentId(res.data.strategyId);
         // Replace routing history to add ID segment without reloading the page context
         navigate(`/editor/${res.data.strategyId}`, { replace: true });
       }
       // Re-fetch lists to update sidebar items
-      const stratRes = await getStrategies(user.userId);
+      const stratRes = await getStrategies();
       setStrategies(stratRes.data);
     } catch (err) {
       alert(err.response?.data?.error || 'Save failed');
@@ -190,7 +190,7 @@ export default function StrategyEditor() {
     setCode(DEFAULT_CODE);
     setStrategyName('Untitled Strategy');
     navigate('/editor');
-    const stratRes = await getStrategies(user.userId);
+    const stratRes = await getStrategies();
     setStrategies(stratRes.data);
   };
 
@@ -231,8 +231,6 @@ export default function StrategyEditor() {
     try {
       // Call time-series simulation pipeline
       const res = await runBacktest({
-        userId: user.userId,
-        userName: user.name,
         strategyId: currentId,
         strategyName,
         code,

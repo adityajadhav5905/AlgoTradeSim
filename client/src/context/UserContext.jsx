@@ -16,12 +16,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { 
-  createUser as apiCreateUser, 
-  updateUser as apiUpdateUser, 
-  resetAccount as apiResetAccount,
-  logoutUser as apiLogoutUser
-} from '../services/api';
+import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, updateUser as apiUpdateUser, resetAccount as apiResetAccount } from '../services/api';
 
 // The key used to read/write the serialized user details string from browser local storage.
 const STORAGE_KEY = 'algotrade_user';
@@ -30,7 +25,7 @@ const STORAGE_KEY = 'algotrade_user';
 const UserContext = createContext(null);
 
 export function UserProvider({ children }) {
-  // `user` holds the logged-in user object: { userId, name, createdAt }
+  // `user` holds the logged-in user object: { userId, name, phoneNumber, token, createdAt }
   const [user, setUser] = useState(null);
   
   // `loading` is true while we verify if a cached user exists in localStorage.
@@ -59,58 +54,65 @@ export function UserProvider({ children }) {
     setUser(userData);
   };
 
-  // Called when the user types their name and submits the onboarding screen.
-  const login = async (name) => {
-    // 1. Call the backend API to create a new user record in the database.
-    const res = await apiCreateUser(name);
-    // 2. Prepare the session object.
+  // Triggers backend code to generate an OTP code and print it to the server console.
+  const requestOtp = async (phoneNumber) => {
+    return await apiRequestOtp(phoneNumber);
+  };
+
+  // Submits the OTP code. If name is supplied (registration step), creates user profile.
+  // Saves the JWT token and user profile details upon successful verification.
+  const verifyOtp = async (phoneNumber, otp, name) => {
+    const res = await apiVerifyOtp(phoneNumber, otp, name);
+    
+    // If the backend indicates verification was successful but the user is new,
+    // we return the response directly so the UI can prompt for their name.
+    if (res.data.isNewUser && !res.data.token) {
+      return res.data;
+    }
+
+    // Otherwise, it was a complete verification/login/registration.
     const userData = {
-      userId: res.data.userId,
-      name: res.data.name,
-      createdAt: res.data.createdAt,
+      userId: res.data.user.userId,
+      name: res.data.user.name,
+      phoneNumber: res.data.user.phoneNumber,
+      token: res.data.token,
+      createdAt: res.data.user.createdAt,
     };
-    // 3. Save to localStorage and React state.
+
     persistUser(userData);
-    return userData;
+    return res.data;
   };
 
   // Called when the user edits their profile name.
   const changeName = async (newName) => {
-    // 1. Tell the backend API to update the name (which updates strategies and leaderboard listings too).
-    await apiUpdateUser(user.userId, newName);
+    // 1. Tell backend API to update name (reads identity from JWT automatically).
+    const res = await apiUpdateUser(newName);
     // 2. Update local state and cached session.
-    persistUser({ ...user, name: newName });
+    persistUser({ ...user, name: res.data.name });
   };
 
   // Resets the entire profile by deleting all saved strategies, backtests, and the user record.
   const resetAccount = async () => {
-    // 1. Tell backend to wipe all databases entries linked to this userId.
-    await apiResetAccount(user.userId);
+    // 1. Tell backend to wipe all databases entries linked to this authenticated user.
+    await apiResetAccount();
     // 2. Clean up browser storage.
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem('algotrade_access_token');
-    localStorage.removeItem('algotrade_refresh_token');
     // 3. Reset state to null, which automatically redirects the user to onboarding.
     setUser(null);
   };
 
   // Simple log out that clears local cache without wiping database records.
-  const logout = useCallback(async () => {
-    try {
-      await apiLogoutUser();
-    } catch (err) {
-      console.warn('Logout API call failed:', err.message);
-    }
+  // useCallback is an optimization that memoizes (caches) this function definition, 
+  // preventing unnecessary child component re-renders.
+  const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem('algotrade_access_token');
-    localStorage.removeItem('algotrade_refresh_token');
     setUser(null);
   }, []);
 
   return (
     // We wrap children in UserContext.Provider, exposing variables and function handlers.
     // Any child component can consume these values by calling the custom `useUser` hook.
-    <UserContext.Provider value={{ user, loading, login, changeName, resetAccount, logout, isLoggedIn: !!user }}>
+    <UserContext.Provider value={{ user, loading, requestOtp, verifyOtp, changeName, resetAccount, logout, isLoggedIn: !!user }}>
       {children}
     </UserContext.Provider>
   );

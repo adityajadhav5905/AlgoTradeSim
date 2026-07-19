@@ -24,12 +24,8 @@ import { createModelProxy } from '../utils/dbProxy.js';
 const userSchema = new mongoose.Schema({
   // Unique identification UUID string
   userId: { type: String, required: true, unique: true },
-  name: { type: String, required: true, unique: true, trim: true }, // Unique names for clean login identification
-  password: { type: String, default: null }, // Hashed password (can be null for quick-created user sessions)
-  role: { type: String, enum: ['User', 'Admin', 'Moderator'], default: 'User' },
-  failedLoginAttempts: { type: Number, default: 0 },
-  lockUntil: { type: Date, default: null },
-  refreshTokenHash: { type: String, default: null },
+  name: { type: String, required: true, trim: true }, // Trim removes trailing whitespace
+  phoneNumber: { type: String, required: true, unique: true }, // Unique phone number for authentication
   createdAt: { type: Date, default: Date.now }, // Defaults to the current timestamp on creation
 });
 

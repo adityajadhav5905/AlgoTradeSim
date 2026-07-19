@@ -8,20 +8,12 @@
  */
 
 import { Router } from 'express';
-import { generate, explain, improve, fix } from '../controllers/aiController.js';
+import { generate } from '../controllers/aiController.js';
+import { auth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Route: POST /api/ai/generate -> Returns completed C++ strategy templates matching prompt
-router.post('/generate', generate);
-
-// Route: POST /api/ai/explain -> Returns line-by-line code annotations
-router.post('/explain', explain);
-
-// Route: POST /api/ai/improve -> Returns modified optimized strategy options
-router.post('/improve', improve);
-
-// Route: POST /api/ai/fix -> Takes compiler syntax failures and updates code
-router.post('/fix', fix);
+// Route: POST /api/ai/generate -> Returns completed C++ strategy templates matching prompt (Authenticated)
+router.post('/generate', auth, generate);
 
 export default router;

@@ -18,13 +18,14 @@ import {
   getStrategies, createStrategy, updateStrategy,
   deleteStrategy, validateStrategyCode,
 } from '../controllers/strategyController.js';
+import { auth } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', getStrategies);
-router.post('/', createStrategy);
-router.put('/:id', updateStrategy); // :id maps to strategyId
-router.delete('/:id', deleteStrategy);
-router.post('/validate', validateStrategyCode);
+router.get('/', auth, getStrategies);
+router.post('/', auth, createStrategy);
+router.put('/:id', auth, updateStrategy); // :id maps to strategyId
+router.delete('/:id', auth, deleteStrategy);
+router.post('/validate', auth, validateStrategyCode);
 
 export default router;

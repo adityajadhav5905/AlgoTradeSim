@@ -118,4 +118,12 @@ if(rsi > 70)
 - Minimum period: 2 years
 - Default capital: ₹1,00,000
 
+## Deployment
 
+- **Frontend:** Vercel — set `VITE_API_URL` to your backend URL
+- **Backend:** Render / Railway — set `MONGODB_URI`, `OPENAI_API_KEY`, `CLIENT_URL`
+- **Database:** MongoDB Atlas
+
+## License
+
+MIT

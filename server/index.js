@@ -28,12 +28,8 @@ import strategyRoutes from './routes/strategyRoutes.js';
 import backtestRoutes from './routes/backtestRoutes.js';
 import leaderboardRoutes from './routes/leaderboardRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
-import { getAvailableSymbols } from './services/marketDataService.js';
+import { getAvailableSymbols, invalidateCache } from './services/marketDataService.js';
 import { STOCKS, INDEXES, EXAMPLE_STRATEGIES, ALL_VARS, TRADING_FUNCTIONS } from './utils/constants.js';
-import { errorHandler } from './presentation/middleware/errorHandler.js';
-import helmet from 'helmet';
-import { sanitizeNoSqlInjection, apiLimiter } from './presentation/middleware/security.js';
-import { authenticateJwt } from './presentation/middleware/auth.js';
 
 // Load variables from .env file into process.env
 dotenv.config();
@@ -42,37 +38,39 @@ const app = express();
 // Port is read from environment config, default to 5000 if empty
 const PORT = process.env.PORT || 5000;
 
-// Setup Helmet security headers
-app.use(helmet());
-
-// Setup CORS: Allows requests only from our client application origin
-app.use(cors({ 
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true 
-}));
+// Setup CORS: Allows requests only from our client application origin (defaults to local Vite port)
+app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
 
 // Setup Request Parser: Decodes JSON bodies. Limit increased to 10mb to handle long strategy code transmissions.
 app.use(express.json({ limit: '10mb' }));
-
-// Apply rate limiter to all standard API endpoints
-app.use('/api/', apiLimiter);
-
-// Prevent NoSQL injection attacks by filtering keys starting with '$'
-app.use(sanitizeNoSqlInjection);
 
 // ==========================================
 // REST API ROUTING REGISTRY
 // ==========================================
 app.use('/api/user', userRoutes);
-app.use('/api/strategies', authenticateJwt, strategyRoutes);
-app.use('/api/backtest', authenticateJwt, backtestRoutes);
-app.use('/api/backtests', authenticateJwt, backtestRoutes); // Backup route alignment
+app.use('/api/strategies', strategyRoutes);
+app.use('/api/backtest', backtestRoutes);
+app.use('/api/backtests', backtestRoutes); // Backup route alignment
 app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api/ai', authenticateJwt, aiRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Endpoint: Returns lists of traded stock symbols and indices
 app.get('/api/market/symbols', (req, res) => {
   res.json({ stocks: STOCKS, indexes: INDEXES, available: getAvailableSymbols() });
+});
+
+// Endpoint: Invalidates cached stock data across local memory, Redis, and other cluster instances
+app.post('/api/market/cache/invalidate', async (req, res) => {
+  try {
+    const { symbol } = req.body;
+    if (!symbol) {
+      return res.status(400).json({ error: 'Symbol parameter is required' });
+    }
+    await invalidateCache(symbol);
+    res.json({ status: 'success', message: `Cache successfully invalidated for: ${symbol.toUpperCase()}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Endpoint: Returns DSL documentation references and templates shown in the Editor Reference page
@@ -84,7 +82,12 @@ app.get('/api/reference', (req, res) => {
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Global error handling middleware.
-app.use(errorHandler);
+// If any API controller encounters an unhandled exception, it forwards it to `next(err)`.
+// This catch-all middleware intercepts it, logs the error stack trace, and returns a clean 500 status.
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 /**
  * start

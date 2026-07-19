@@ -15,12 +15,14 @@ import { Router } from 'express';
 import {
   runBacktestHandler, getBacktest, getBacktests, clearBacktests,
 } from '../controllers/backtestController.js';
+import { rateLimiter, deduplicator } from '../middleware/backtestGuard.js';
+import { auth } from '../middleware/auth.js';
 
 const router = Router();
 
-router.post('/run', runBacktestHandler);
-router.get('/', getBacktests);
-router.post('/clear', clearBacktests);
-router.get('/:id', getBacktest); // :id maps to backtestId
+router.post('/run', auth, rateLimiter, deduplicator, runBacktestHandler);
+router.get('/', auth, getBacktests);
+router.post('/clear', auth, clearBacktests);
+router.get('/:id', auth, getBacktest); // :id maps to backtestId
 
 export default router;
