@@ -38,8 +38,19 @@ const app = express();
 // Port is read from environment config, default to 5000 if empty
 const PORT = process.env.PORT || 5000;
 
-// Setup CORS: Allows requests only from our client application origin (defaults to local Vite port)
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+// Setup CORS: Allows requests from the configured CLIENT_URL and any local development ports (e.g. 5173, 5174, etc.)
+const allowedOrigins = [process.env.CLIENT_URL].filter(Boolean);
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    const isLocalhost = /^http:\/\/localhost:\d+$/.test(origin);
+    if (isLocalhost || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
 
 // Setup Request Parser: Decodes JSON bodies. Limit increased to 10mb to handle long strategy code transmissions.
 app.use(express.json({ limit: '10mb' }));

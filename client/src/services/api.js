@@ -48,6 +48,21 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Axios Response Interceptor: Automatically handles 401 unauthorized responses
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      console.warn('[API Interceptor] 401 Unauthorized encountered. Clearing session.');
+      localStorage.removeItem('algotrade_user');
+      if (window.location.pathname !== '/') {
+        window.location.href = '/';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ==========================================
 // USER API ENDPOINTS
 // ==========================================

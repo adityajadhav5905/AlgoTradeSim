@@ -15,7 +15,7 @@
  *    We use regular expressions to strip these out, leaving only raw code text.
  */
 
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -38,41 +38,45 @@ ALLOWED SYNTAX:
 if(condition) { } else { }
 Operators: > < >= <= == != && || + - * /
 
+If the user request is unrelated to trading, cannot be formulated as a strategy, or is invalid, return a commented block explaining why the strategy could not be written using this exact format:
+/*
+ * ERROR: Could not generate strategy
+ * REASON: [Explain the reason here]
+ */
+
 Return ONLY the strategy code, no markdown fences.`;
 
-// Initialize OpenAI client pointing to the Google Gemini OpenAI-compatibility endpoint.
-// Requires a valid GEMINI_API_KEY environment variable.
-let openai = null;
-if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
-  openai = new OpenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
+// Initialize Google Generative AI client using GEMINI_API_KEY or OPENAI_API_KEY fallback
+const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+const isDummyKey = !apiKey || apiKey === 'your_gemini_api_key_here' || apiKey === 'your_openai_api_key_here';
+
+let model = null;
+if (!isDummyKey) {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  model = genAI.getGenerativeModel({
+    model: 'gemini-3.5-flash',
+    systemInstruction: SYSTEM_PROMPT,
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 1024,
+    }
   });
 }
 
 /**
- * callLLM - Submits the prompt to Google's Gemini 1.5 Flash model.
+ * callLLM - Submits the prompt to Google's Gemini 3.5 Flash model.
  * Falls back to offline pattern matching templates if the API key is not configured.
  */
 async function callLLM(userPrompt) {
-  if (!openai) {
+  if (!model) {
     // Revert to static pattern matchers if Gemini API key is missing.
     // This allows students/testers to continue using the application offline.
     return generateFallback(userPrompt);
   }
 
-  // Request completions using the official Gemini 1.5 Flash model
-  const response = await openai.chat.completions.create({
-    model: 'gemini-1.5-flash',
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    temperature: 0.3, // Low temperature ensures rigid logical compliance with our C++ DSL
-    max_tokens: 1024,
-  });
-
-  return response.choices[0]?.message?.content?.trim() || '';
+  // Request completions using the official Gemini 3.5 Flash model
+  const result = await model.generateContent(userPrompt);
+  return result.response.text()?.trim() || '';
 }
 
 /**

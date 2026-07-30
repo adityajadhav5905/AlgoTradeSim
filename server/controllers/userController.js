@@ -28,8 +28,19 @@ import Strategy from '../models/Strategy.js';
 import Backtest from '../models/Backtest.js';
 import Leaderboard from '../models/Leaderboard.js';
 import Otp from '../models/Otp.js';
+import { sendOtpSms } from '../services/smsService.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_for_algotrade_simulator_123';
+
+/**
+ * getDbPhone
+ * Sanitizes phone numbers by keeping only the last 10 digits for consistent database lookup.
+ * E.g., '+918862046490' -> '8862046490'.
+ */
+const getDbPhone = (phone) => {
+  const digits = phone.trim().replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : digits;
+};
 
 /**
  * requestOtp - Generates a 6-digit OTP code and logs it to the backend console.
@@ -43,25 +54,22 @@ export const requestOtp = async (req, res) => {
     }
 
     const cleanPhone = phoneNumber.trim();
+    const dbPhone = getDbPhone(cleanPhone);
 
     // Generate a secure 6-digit OTP code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Store/Upsert the OTP in the database (or memory fallback). Set expires/TTL.
     await Otp.findOneAndUpdate(
-      { phoneNumber: cleanPhone },
+      { phoneNumber: dbPhone },
       { otp: otpCode, createdAt: new Date() },
       { upsert: true, new: true }
     );
 
-    // CRITICAL: Log the OTP code to the server terminal console for developer/tester access.
-    // We do NOT return the OTP in the response body to prevent inspection hacks in the browser network tab.
-    console.log('\n==================================================');
-    console.log(`[OTP ALERT] Phone Number: ${cleanPhone}`);
-    console.log(`[OTP ALERT] Generated OTP: ${otpCode}`);
-    console.log('==================================================\n');
+    // Send the OTP via the TextBee SMS Gateway (logs mock details to console if not configured)
+    await sendOtpSms(cleanPhone, otpCode);
 
-    res.json({ message: 'OTP sent successfully. Please check the backend server console for the code.' });
+    res.json({ message: 'OTP sent successfully. Please check your mobile device or server console for the code.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -80,20 +88,26 @@ export const verifyOtp = async (req, res) => {
 
     const cleanPhone = phoneNumber.trim();
     const cleanOtp = otp.trim();
+    const dbPhone = getDbPhone(cleanPhone);
 
-    // 1. Retrieve the stored OTP entry
-    const otpRecord = await Otp.findOne({ phoneNumber: cleanPhone });
-    if (!otpRecord) {
-      return res.status(400).json({ error: 'OTP has expired or was never requested. Please click Resend OTP.' });
-    }
+    // Check for developer bypass codes ('123456' or '000000') - disabled in production mode
+    const isBypass = process.env.NODE_ENV !== 'production' && (cleanOtp === '123456' || cleanOtp === '000000');
 
-    // 2. Validate matching OTP
-    if (otpRecord.otp !== cleanOtp) {
-      return res.status(400).json({ error: 'Incorrect OTP code. Please check and try again.' });
+    if (!isBypass) {
+      // 1. Retrieve the stored OTP entry
+      const otpRecord = await Otp.findOne({ phoneNumber: dbPhone });
+      if (!otpRecord) {
+        return res.status(400).json({ error: 'OTP has expired or was never requested. Please click Resend OTP.' });
+      }
+
+      // 2. Validate matching OTP
+      if (otpRecord.otp !== cleanOtp) {
+        return res.status(400).json({ error: 'Incorrect OTP code. Please check and try again.' });
+      }
     }
 
     // 3. Find if a User exists with this phone number
-    const user = await User.findOne({ phoneNumber: cleanPhone });
+    const user = await User.findOne({ phoneNumber: dbPhone });
 
     if (!user) {
       // User doesn't exist yet: Registration step.
@@ -110,18 +124,18 @@ export const verifyOtp = async (req, res) => {
       const newUser = await User.create({
         userId,
         name: name.trim(),
-        phoneNumber: cleanPhone
+        phoneNumber: dbPhone
       });
 
       // Generate JWT session token
       const token = jwt.sign(
-        { userId, phoneNumber: cleanPhone, name: name.trim() },
+        { userId, phoneNumber: dbPhone, name: name.trim() },
         JWT_SECRET,
         { expiresIn: '7d' }
       );
 
       // Clean up the used OTP record
-      await Otp.deleteOne({ phoneNumber: cleanPhone });
+      await Otp.deleteOne({ phoneNumber: dbPhone });
 
       return res.status(201).json({
         token,
@@ -143,7 +157,7 @@ export const verifyOtp = async (req, res) => {
     );
 
     // Clean up the used OTP record
-    await Otp.deleteOne({ phoneNumber: cleanPhone });
+    await Otp.deleteOne({ phoneNumber: dbPhone });
 
     res.json({
       token,

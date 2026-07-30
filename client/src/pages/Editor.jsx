@@ -369,7 +369,7 @@ export default function StrategyEditor() {
           )}
 
           {/* AI assistant component sidebar */}
-          <div className="border-t border-border p-4 bg-bg-secondary shrink-0 max-h-[220px]">
+          <div className="border-t border-border p-4 bg-bg-secondary shrink-0 max-h-[340px] overflow-y-auto">
             <AIAssistant
               code={code}
               onCodeGenerated={setCode}

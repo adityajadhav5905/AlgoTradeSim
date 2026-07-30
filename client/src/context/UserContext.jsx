@@ -32,19 +32,11 @@ export function UserProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Hook that runs once after the provider component mounts.
-  // We check if the user has an active session saved in their browser.
+  // To ensure the site always opens on the login page and logs out on refresh/hard refresh,
+  // we clear the stored user session from localStorage and set user state to null.
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try { 
-        // localStorage stores data as strings, so we parse it back to a JSON object.
-        setUser(JSON.parse(stored)); 
-      } catch { 
-        // If parsing fails (corrupted string), delete the invalid cache item.
-        localStorage.removeItem(STORAGE_KEY); 
-      }
-    }
-    // Set loading to false so the application route guards can evaluate page transitions.
+    localStorage.removeItem(STORAGE_KEY);
+    setUser(null);
     setLoading(false);
   }, []);
 

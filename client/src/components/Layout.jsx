@@ -42,7 +42,7 @@ const NAV_ITEMS = [
 ];
 
 export default function Layout() {
-  const { user, changeName, resetAccount } = useUser();
+  const { user, changeName, resetAccount, logout } = useUser();
   const [menuOpen, setMenuOpen] = useState(false); // Controls user profile dropdown visibility
   const [showNameModal, setShowNameModal] = useState(false); // Controls name change popup modal
   const [newName, setNewName] = useState(''); // Text field input state for name edit
@@ -54,6 +54,12 @@ export default function Layout() {
     await changeName(newName.trim());
     setShowNameModal(false);
     setNewName('');
+  };
+
+  // Performs user logout
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
   // Completely resets account data
@@ -171,9 +177,13 @@ export default function Layout() {
                       <RefreshCw className="w-4 h-4" /> Clear Saved Strategies
                     </button>
                     <hr className="border-border my-1" />
+                    <button onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-bg-hover text-left text-theme-primary">
+                      <LogOut className="w-4 h-4 text-muted" /> Log Out
+                    </button>
                     <button onClick={handleResetAccount}
                       className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-bg-hover text-danger text-left">
-                      <LogOut className="w-4 h-4" /> Reset Account
+                      <Trash2 className="w-4 h-4" /> Reset Account
                     </button>
                   </div>
                 )}

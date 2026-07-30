@@ -61,7 +61,7 @@ export default function AIAssistant({ onCodeGenerated }) {
 
       {/* Description text area */}
       <textarea
-        className="input-field flex-1 min-h-[120px] resize-none mb-3 font-sans text-sm"
+        className="input-field flex-1 min-h-[70px] resize-none mb-3 font-sans text-sm"
         placeholder='Describe your strategy... e.g. "Buy when close breaks above high_52w and sell when rsi exceeds 70"'
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
