@@ -39,6 +39,11 @@ import { STOCKS, INDEXES, EXAMPLE_STRATEGIES, ALL_VARS, TRADING_FUNCTIONS } from
 dotenv.config();
 
 const app = express();
+
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
 // Port is read from environment config, default to 5000 if empty
 const PORT = process.env.PORT || 5000;
 
