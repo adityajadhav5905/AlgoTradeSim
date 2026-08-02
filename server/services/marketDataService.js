@@ -76,9 +76,11 @@ async function initRedis() {
     isRedisConnected = false;
   }
 }
+// import dotenv from 'dotenv';
+// dotenv.config();
 
 // Start connecting to Redis
-initRedis();
+// initRedis();
 
 /**
  * getRedisClient - Returns the Redis client if connected.
@@ -139,7 +141,7 @@ function getYahooSymbol(symbol) {
  */
 export async function loadSymbolData(symbol) {
   const upper = symbol.toUpperCase();
-  
+
   // 1. Check in-memory RAM cache first
   if (cache.has(upper)) {
     return cache.get(upper);
@@ -169,24 +171,24 @@ export async function loadSymbolData(symbol) {
   console.log(`Fetching ${upper} from Yahoo Finance API...`);
   const yahooSymbol = getYahooSymbol(upper);
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=5y&interval=1d`;
-  
+
   try {
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Yahoo Finance API responded with status ${response.status}`);
     }
-    
+
     const data = await response.json();
     const result = data.chart?.result?.[0];
     if (!result) {
       throw new Error(`No chart result returned for ${yahooSymbol}`);
     }
-    
+
     const timestamps = result.timestamp || [];
     const quote = result.indicators?.quote?.[0] || {};
     const opens = quote.open || [];
@@ -194,7 +196,7 @@ export async function loadSymbolData(symbol) {
     const lows = quote.low || [];
     const closes = quote.close || [];
     const volumes = quote.volume || [];
-    
+
     const candles = [];
     for (let i = 0; i < timestamps.length; i++) {
       const open = opens[i];
@@ -202,15 +204,15 @@ export async function loadSymbolData(symbol) {
       const low = lows[i];
       const close = closes[i];
       const volume = volumes[i];
-      
+
       // Filter out null / invalid values
-      if (open === null || open === undefined || 
-          high === null || high === undefined || 
-          low === null || low === undefined || 
-          close === null || close === undefined) {
+      if (open === null || open === undefined ||
+        high === null || high === undefined ||
+        low === null || low === undefined ||
+        close === null || close === undefined) {
         continue;
       }
-      
+
       const dateStr = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
       candles.push({
         date: dateStr,
@@ -221,13 +223,13 @@ export async function loadSymbolData(symbol) {
         volume: volume ? Math.floor(volume) : 0,
       });
     }
-    
+
     if (candles.length === 0) {
       throw new Error(`No valid candles extracted for ${yahooSymbol}`);
     }
-    
+
     console.log(`Successfully fetched ${upper} (${candles.length} rows)`);
-    
+
     // Save to in-memory cache
     cache.set(upper, candles);
 
@@ -240,7 +242,7 @@ export async function loadSymbolData(symbol) {
         console.error(`[Redis] Error setting key ${cacheKey}:`, err.message);
       }
     }
-    
+
     return candles;
   } catch (err) {
     console.error(`Failed to fetch Yahoo Finance data for ${upper}:`, err);
@@ -278,3 +280,5 @@ export function validateBacktestPeriod(startDate, endDate) {
     throw new Error('Start date must be before end date');
   }
 }
+
+export { initRedis };

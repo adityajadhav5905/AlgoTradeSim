@@ -28,7 +28,11 @@ import strategyRoutes from './routes/strategyRoutes.js';
 import backtestRoutes from './routes/backtestRoutes.js';
 import leaderboardRoutes from './routes/leaderboardRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
-import { getAvailableSymbols, invalidateCache } from './services/marketDataService.js';
+import {
+  getAvailableSymbols,
+  invalidateCache,
+  initRedis
+} from './services/marketDataService.js';
 import { STOCKS, INDEXES, EXAMPLE_STRATEGIES, ALL_VARS, TRADING_FUNCTIONS } from './utils/constants.js';
 
 // Load variables from .env file into process.env
@@ -115,6 +119,7 @@ async function start() {
     // MongoDB failed. The project automatically reverts to saving variables to RAM arrays (offline proxy mode).
     console.warn('MongoDB connection failed — running without database:', err.message);
   }
+  await initRedis();
 
   // Open the network socket and listen for requests
   app.listen(PORT, () => {
