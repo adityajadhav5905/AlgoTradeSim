@@ -30,7 +30,7 @@ export default function Onboarding() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
-  
+
   const [loading, setLoading] = useState(false); // Controls loading indicators and button disables
   const [error, setError] = useState(''); // Stores server validation error messages
   const [infoMessage, setInfoMessage] = useState(''); // Stores helpful instructions (e.g. OTP sentinel alerts)
@@ -52,7 +52,7 @@ export default function Onboarding() {
     try {
       await requestOtp(phoneNumber);
       setStep('otp');
-      setInfoMessage('OTP code has been generated. Please check your backend server console/logs to copy it.');
+      setInfoMessage('OTP code has been sent.');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to request OTP. Ensure backend is running.');
     } finally {
@@ -76,7 +76,7 @@ export default function Onboarding() {
     setError('');
     try {
       const response = await verifyOtp(phoneNumber, otp, name);
-      
+
       // If user doesn't exist, the backend prompts for a name.
       // We switch to the 'name' input screen to collect it.
       if (response.isNewUser && !response.token) {
@@ -127,7 +127,7 @@ export default function Onboarding() {
 
         {/* Auth form block wrapper */}
         <div className="glass-card p-8 space-y-6">
-          
+
           {/* Step 1: Input Phone Number */}
           {step === 'phone' && (
             <form onSubmit={handleRequestOtp} className="space-y-6">
