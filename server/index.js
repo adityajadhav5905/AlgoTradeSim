@@ -99,7 +99,9 @@ app.get('/api/reference', (req, res) => {
 });
 
 // Health check endpoint (used by cloud services to check if the server is responsive)
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 // Global error handling middleware.
 // If any API controller encounters an unhandled exception, it forwards it to `next(err)`.
