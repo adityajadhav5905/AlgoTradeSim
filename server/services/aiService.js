@@ -94,8 +94,14 @@ async function callLLM(userPrompt) {
     return text;
 
   } catch (err) {
+    console.error("AI generation failed:");
     console.error(err);
-    throw new Error("Failed to generate strategy.");
+
+    if (err.stack) {
+      console.error(err.stack);
+    }
+
+    throw err; // Don't replace the original error while debugging
   }
 }
 
